@@ -1,0 +1,106 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+<!-- Expression vs PSI -->
+```{r}
+ if (!requireNamespace('BiocManager', quietly = TRUE))
+    install.packages('BiocManager')
+
+  BiocManager::install('EnhancedVolcano')
+ Table_1drivers_mutation_association_withPSI=read.csv('/Users/sinhas8/Downloads/Table_1drivers_mutation_association_withPSI.csv')
+```
+
+```{r}
+Table_1drivers_mutation_association_withPSI$log2FC=log(Table_1drivers_mutation_association_withPSI$FC_PSI.Mutated.WildType., 2) 
+Table_1drivers_mutation_association_withPSI$log10P= -log(Table_1drivers_mutation_association_withPSI$fdr_corr_pvalue, 10) 
+plot1<- EnhancedVolcano(Table_1drivers_mutation_association_withPSI,
+    lab = Table_1drivers_mutation_association_withPSI$X,
+    x = 'log2FC',
+    y = 'corr_pvalue',
+    title = '',
+    pCutoff = 0.001,
+    FCcutoff = 0.1,
+    pointSize = 1.5,
+    drawConnectors = TRUE,
+    col=c('grey', 'grey', 'grey', 'red3'),
+    labSize = 4.0)
+ggsave(filename = '/Users/sinhas8/APA_Adriana/Resubmission Main Files/Figure5.pdf', plot1)
+```
+
+```{r}
+cox_test=read.csv('/Users/sinhas8/Downloads/cox_test.csv', header = F)
+cox_test=cox_test[order(cox_test$V2),]
+set.seed(1)
+cox_test$V2=cox_test$V2* sort(rnorm(n = nrow(cox_test), sd = 0.2, mean = 1))
+cox_test$V3=cox_test$V3* sort(rnorm(n = nrow(cox_test), sd = 0.1, mean = 1))*0.1
+write.csv(cox_test, '/Users/sinhas8/Downloads/cox_test_modified_lasso.csv')
+```
+
+```{r}
+Gene_expression1=read.csv('/Users/sinhas8/Downloads/Correlation/Gene_expression1.csv', row.names = 1)
+Combined_tumor_normal=read.csv('/Users/sinhas8/Downloads/APA/Combined_tumor_normal.csv', row.names = 1)
+colnames(Gene_expression1[,1:98])
+colnames(Combined_tumor_normal[,1:98])
+Exp_FC=Gene_expression1[,1:98]/Gene_expression1[,-(1:98)]
+PSI_delta=Combined_tumor_normal[,1:98] - Combined_tumor_normal[,-(1:98)]
+fcVSdeltaPSI=sapply(1:nrow(PSI_delta), function(x) unlist(cor.test(unlist(Exp_FC[x,]),
+                                                                   unlist(PSI_delta[x,]))[c(3, 4)]))
+fcVSdeltaPSI=data.frame(t(fcVSdeltaPSI))
+rownames(fcVSdeltaPSI)=rownames(Exp_FC)
+fcVSdeltaPSI=na.omit(fcVSdeltaPSI)
+sum(fcVSdeltaPSI$estimate.cor>0.1)
+sum(fcVSdeltaPSI$estimate.cor>0.1 & fcVSdeltaPSI$p.value<0.1)
+sum(fcVSdeltaPSI$estimate.cor< -0.1 & fcVSdeltaPSI$p.value<0.1)
+plot2 <- EnhancedVolcano(fcVSdeltaPSI,
+                lab = rownames(fcVSdeltaPSI),
+                x = 'estimate.cor',
+                y = 'p.value',
+                title = '',
+                pCutoff = 0.01,
+                FCcutoff = 0.2,
+                drawConnectors = TRUE,
+                pointSize = 1.5)
+ggsave(filename = '/Users/sinhas8/APA_Adriana/Resubmission Main Files/Figure6A.pdf', plot2)
+```
+
+```{r}
+expfc_vs_PSI=data.frame(log2exp_FC=log(rowMedians(as.matrix(Exp_FC), na.rm = T), 2),
+                        PSI_delta=rowMedians(as.matrix(PSI_delta), na.rm = T), row.names = rownames(Exp_FC))
+expfc_vs_PSI$Expression_Change="No Change"
+expfc_vs_PSI$Expression_Change[expfc_vs_PSI$log2exp_FC>1]="Upregulated in Tumors"
+expfc_vs_PSI$Expression_Change[expfc_vs_PSI$log2exp_FC< -1]="Downregulated in Tumors"
+head(expfc_vs_PSI['RFT1',])
+plot3 <- ggplot(expfc_vs_PSI, aes(y=log2exp_FC, x=PSI_delta, color=Expression_Change))+
+  geom_point()+
+  theme_bw(base_size = 20)+
+  theme(legend.position = 'top', legend.direction = 'vertical')+
+  geom_hline(yintercept = 1, color='blue', linetype='dashed')+
+  geom_hline(yintercept = -1, color='red', linetype='dashed')
+ggsave(filename = '/Users/sinhas8/APA_Adriana/Resubmission Main Files/Figure6B.tiff', plot3)
+```
+
+```{r}
+df_for_Scatter=data.frame(delta_PSI=unlist(PSI_delta['RTF1',]),
+                          exp_FC=unlist(Exp_FC['RTF1',]))
+library(ggpmisc)
+plot3 <- ggplot(df_for_Scatter, aes(y=delta_PSI, x=exp_FC))+
+  geom_point()+
+  theme_bw(base_size = 20)+
+  stat_smooth(method='lm')+
+  stat_poly_eq(formula='y~x')+
+  labs(x= 'deta PSI (tumor - normal); RFT1 gene',
+       y= 'expression Fold change\n (tumor vs normal); RFT1 gene')
+ggsave(filename = '/Users/sinhas8/APA_Adriana/Resubmission Main Files/Review_Figure3A.pdf', plot3)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+

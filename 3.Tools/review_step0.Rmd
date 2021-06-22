@@ -1,0 +1,77 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+```{r}
+source('/Users/sinhas8/myCustom_functions.R')
+PSI_tumor=read.csv('/Users/sinhas8/APA_Adriana/5.Previous_Versions/Finished_Project_APA_prognostic-Marker/PSI_new.csv')
+row.names(PSI_tumor)=(PSI_tumor)[,1]
+PSI_tumor=(PSI_tumor)[,-1]
+Demo_Age_sex=read.csv('/Users/sinhas8/APA_Adriana/2.Data/Demo_Age_Sex.csv')
+race_df=t(Demo_Age_sex[match(gsub('X','',colnames(PSI_tumor)), Demo_Age_sex$PATIENT.ACC.),])[c(8),]
+names(race_df)=NULL
+demo=read.csv('/Users/sinhas8/APA_Adriana/2.Data/demo.csv')
+histology_df=c(t(demo[match(gsub('X','',colnames(PSI_tumor)),demo$acc),])[c(2),])
+names(histology_df)=NULL
+
+df2plot=data.frame(PSI=colMeans(PSI_tumor, na.rm = T),
+                             race=race_df,
+                             cancer_type=histology_df)
+
+df2plot=df2plot[df2plot$race !='H',]
+df2plot$Race=factor(as.character(df2plot$race))
+df2plot=df2plot[df2plot$cancer_type=='adeno' | df2plot$cancer_type=='sq',]
+df2plot$cancer_type=factor(as.character(df2plot$cancer_type), labels = c('LUAD', 'LUSC'))
+```
+<!-- make Plot for review -->
+<!-- Review Figure 1 -->
+```{r}
+colorType_Set='Set1'
+df2plot=na.omit(df2plot)
+
+review1A <-ggplot(df2plot, aes(y=PSI, x=cancer_type, fill=cancer_type))+
+  geom_boxplot()+
+  theme_bw(base_size = 20)+
+  labs(x='Lung cancer subtype', y='PSI')+
+  stat_compare_means(method='wilcox', size=8, label.y = 0.04, label = 'p')
+ggsave(filename = '/Users/sinhas8/APA_Adriana/Results/review_Figure1A.pdf', review1A)
+
+review1C <-ggplot(df2plot, aes(y=PSI, x=cancer_type, fill=race))+
+  geom_boxplot()+
+  theme_bw(base_size = 20)+
+  labs(x='Lung cancer subtype', y='PSI', fill='ancestry')+
+  stat_compare_means(method='wilcox', size=8, label.y = 0.04, label = 'p')+
+  scale_fill_brewer(palette=colorType_Set)
+ggsave(filename = '/Users/sinhas8/APA_Adriana/Results/review_Figure1C.pdf', review1C)
+aggregate(PSI~ race+ cancer_type, df2plot, length)
+```
+
+```{r}
+LUSC_APA_genes=read_xlsx('/Users/sinhas8/APA_Adriana/2.Data/LUSC_APA_genes.xlsx')
+
+```
+
+```{r}
+corr_PSI_expression=read.csv('/Users/sinhas8/Downloads/Correlation_and_pvalues (1).csv')
+sig=corr_PSI_expression$spr_pvalues<0.01
+mean(corr_PSI_expression$spr_corr)
+corr_PSI_expression_hist<- ggplot(corr_PSI_expression, aes(x=spr_corr))+
+  geom_histogram(color="black", fill="white")+
+  geom_vline(xintercept = 0.002, linetype='dashed')+
+  theme_bw(base_size = 20)+
+  labs(x='Spearman Correlation Coefficients')
+
+ggsave('/Users/sinhas8/APA_Adriana/Resubmission Main Files/corr_PSI_expression_hist.pdf',
+       corr_PSI_expression_hist)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
